@@ -12,14 +12,13 @@ import (
 	"os/exec"
 	"strings"
 
-	"golang.org/x/exp/slices"
-
+	"github.com/base-org/eip712sign/usbwallet"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tyler-smith/go-bip39"
+	"golang.org/x/exp/slices"
 )
 
 func main() {
@@ -65,13 +64,14 @@ func main() {
 	// data to run without a key / ledger, which is useful for simulation purposes
 	s, signerErr := createSigner(privateKey, mnemonic, hdPath, index)
 	if signerErr != nil {
+		if address {
+			log.Fatalf("Error creating signer: %v", signerErr)
+		}
 		log.Printf("Warning: signer creation failed: %v", signerErr)
 	}
 
 	if address {
-		if s == nil {
-			fmt.Printf("Signer: %s\n", s.address().String())
-		}
+		fmt.Printf("Signer: %s\n", s.address().String())
 		os.Exit(0)
 	}
 
@@ -110,8 +110,6 @@ func main() {
 		log.Fatalf("Expected EIP-712 hex string with 66 bytes, got %d bytes, value: %s", len(input), string(input))
 	}
 
-	fmt.Printf("Signing as: %s\n\n", s.address().String())
-
 	domainHash := hash[2:34]
 	messageHash := hash[34:66]
 	fmt.Printf("Domain hash: 0x%s\n", hex.EncodeToString(domainHash))
@@ -120,6 +118,8 @@ func main() {
 	if signerErr != nil {
 		log.Fatalf("Error creating signer: %v", signerErr)
 	}
+
+	fmt.Printf("Signing as: %s\n\n", s.address().String())
 
 	if ledger {
 		fmt.Printf("Data sent to ledger, awaiting signature...")
@@ -200,7 +200,7 @@ func createSigner(privateKey, mnemonic, hdPath string, index int) (signer, error
 	}
 	account, err := wallet.Derive(path, true)
 	if err != nil {
-		return nil, fmt.Errorf("error deriving ledger account (have you unlocked?): %w", err)
+		return nil, fmt.Errorf("error deriving ledger account (please unlock and open the Ethereum app): %w", err)
 	}
 	return &walletSigner{
 		wallet:  wallet,
